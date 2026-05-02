@@ -204,7 +204,8 @@ Request body:
 ```json
 {
   "receiverId": "receiver_user_id",
-  "amount": 100
+  "amount": 100,
+  "idempotencyKey": "unique-transfer-key-123"
 }
 ```
 
@@ -227,6 +228,44 @@ Success response:
 }
 ```
 
+If a request is retried with the same `idempotencyKey`, the API will return the existing transaction instead of creating a duplicate.
+
+### Get User Transactions
+
+```http
+GET /api/wallet/transactions
+```
+
+Protected: Yes
+
+Success response:
+
+```json
+{
+  "success": true,
+  "count": 1,
+  "transactions": [
+    {
+      "_id": "transaction_id",
+      "senderId": {
+        "_id": "sender_id",
+        "name": "Sender Name",
+        "email": "sender@example.com"
+      },
+      "receiverId": {
+        "_id": "receiver_id",
+        "name": "Receiver Name",
+        "email": "receiver@example.com"
+      },
+      "amount": 100,
+      "timestamp": "2026-05-02T00:00:00.000Z",
+      "createdAt": "2026-05-02T00:00:00.000Z",
+      "updatedAt": "2026-05-02T00:00:00.000Z"
+    }
+  ]
+}
+```
+
 ## Transfer Safety Guarantees
 
 The transfer endpoint uses:
@@ -234,6 +273,7 @@ The transfer endpoint uses:
 - Mongoose sessions and transactions so debit, credit, and transaction logging commit or roll back together.
 - Atomic `$inc` updates to prevent lost updates under concurrent transfer requests.
 - Conditional sender update with `balance: { $gte: amount }` to prevent negative balances.
+- Idempotency key support to prevent duplicate transfer processing on retries.
 - Validations for receiver existence, sufficient balance, positive amount, and self-transfer prevention.
 
 ## Common Error Responses
@@ -256,5 +296,20 @@ The transfer endpoint uses:
 {
   "success": false,
   "message": "Receiver does not exist"
+}
+```
+
+```json
+{
+  "success": false,
+  "message": "Idempotency key is required to prevent duplicate transfers"
+}
+```
+
+```json
+{
+  "success": false,
+  "message": "Duplicate transaction detected. This transfer has already been processed.",
+  "transaction": { ... }
 }
 ```

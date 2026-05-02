@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-
 const Transaction = require('../models/Transaction');
 const User = require('../models/User');
 
@@ -27,9 +26,16 @@ const transfer = async (req, res) => {
   const session = await mongoose.startSession();
 
   try {
-    const { receiverId, amount } = req.body;
+    const { receiverId, amount, idempotencyKey } = req.body; 
     const senderId = req.user._id;
     const transferAmount = Number(amount);
+
+    if (!idempotencyKey) {
+      return res.status(400).json({
+        success: false,
+        message: 'Idempotency key is required to prevent duplicate transfers',
+      });
+    }
 
     if (!mongoose.Types.ObjectId.isValid(receiverId)) {
       return res.status(400).json({
@@ -52,6 +58,15 @@ const transfer = async (req, res) => {
       });
     }
 
+    const existingTransaction = await Transaction.findOne({ idempotencyKey });
+    if (existingTransaction) {
+      return res.status(409).json({
+        success: false,
+        message: 'Duplicate transaction detected. This transfer has already been processed.',
+        transaction: existingTransaction
+      });
+    }
+
     let transactionRecord;
     let senderBalance;
 
@@ -63,6 +78,7 @@ const transfer = async (req, res) => {
         error.statusCode = 404;
         throw error;
       }
+
 
       const senderUpdate = await User.findOneAndUpdate(
         {
@@ -96,6 +112,7 @@ const transfer = async (req, res) => {
             senderId,
             receiverId,
             amount: transferAmount,
+            idempotencyKey, 
           },
         ],
         { session }
@@ -119,11 +136,6 @@ const transfer = async (req, res) => {
   } finally {
     await session.endSession();
   }
-};
-
-module.exports = {
-  getProfile,
-  transfer,
 };
 
 const getTransactions = async (req, res) => {

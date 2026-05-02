@@ -17,6 +17,11 @@ const transactionSchema = new mongoose.Schema(
       required: true,
       min: [0.01, 'Amount must be greater than zero'],
     },
+    idempotencyKey: {
+    type: String,
+    unique: true, 
+    required: true,
+    },
     timestamp: {
       type: Date,
       default: Date.now,
