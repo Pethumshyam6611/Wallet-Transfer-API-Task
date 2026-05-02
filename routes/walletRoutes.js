@@ -7,5 +7,6 @@ const router = express.Router();
 
 router.get('/user/profile', protect, getProfile);
 router.post('/wallet/transfer', protect, transfer);
+router.get('/wallet/transactions', protect, getTransactions);
 
 module.exports = router;

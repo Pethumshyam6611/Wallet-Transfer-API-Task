@@ -125,3 +125,33 @@ module.exports = {
   getProfile,
   transfer,
 };
+
+const getTransactions = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    const transactions = await Transaction.find({
+      $or: [{ senderId: userId }, { receiverId: userId }]
+    })
+    .sort({ createdAt: -1 }) 
+    .populate('senderId', 'name email') 
+    .populate('receiverId', 'name email');
+
+    return res.status(200).json({
+      success: true,
+      count: transactions.length,
+      transactions
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to fetch transactions'
+    });
+  }
+};
+
+module.exports = {
+  getProfile,
+  transfer,
+  getTransactions, 
+};
